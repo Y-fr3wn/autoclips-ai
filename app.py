@@ -1,5 +1,6 @@
 """AutoClips AI — deployable Gradio prototype for free-tier CPU hosting."""
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -87,4 +88,4 @@ with gr.Blocks(title="AutoClips AI | بودكاست إلى شورتس") as demo:
               outputs=[status, downloads, preview, zip_download], concurrency_limit=1)
 
 if __name__ == "__main__":
-    demo.queue(max_size=3).launch()
+    demo.queue(max_size=3).launch(server_name="0.0.0.0", server_port=int(os.environ.get("PORT", "7860")))
