@@ -1,5 +1,6 @@
 """AutoClips AI — deployable Gradio prototype for free-tier CPU hosting."""
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -42,12 +43,15 @@ def process_video(video, count, min_seconds, max_seconds, subtitles, model):
     try:
         result = subprocess.run(command, capture_output=True, text=True, timeout=1800)
     except subprocess.TimeoutExpired:
+        shutil.rmtree(output, ignore_errors=True)
         raise gr.Error("انتهت مهلة المعالجة. جرّب فيديو أقصر.")
     if result.returncode:
         detail = (result.stderr or result.stdout)[-1800:]
+        shutil.rmtree(output, ignore_errors=True)
         raise gr.Error("فشلت المعالجة: " + detail)
     clips = sorted(output.glob("clip_*.mp4"))
     if not clips:
+        shutil.rmtree(output, ignore_errors=True)
         raise gr.Error("لم نجد مقاطع مناسبة في الفيديو. جرّب فيديو أطول أو قلّل الحد الأدنى.")
     meta = output / "clips.json"
     description = f"تم إنشاء {len(clips)} شورتس."
@@ -57,7 +61,8 @@ def process_video(video, count, min_seconds, max_seconds, subtitles, model):
             f"المقطع {i+1}: {row['start']:.1f}–{row['end']:.1f} ثانية"
             for i, row in enumerate(info)
         )
-    return description, [str(p) for p in clips], str(clips[0])
+    archive = shutil.make_archive(str(output / "autoclips_shorts"), "zip", root_dir=output, base_dir=".")
+    return description, [str(p) for p in clips], str(clips[0]), archive
 
 
 with gr.Blocks(title="AutoClips AI | بودكاست إلى شورتس") as demo:
@@ -77,8 +82,9 @@ with gr.Blocks(title="AutoClips AI | بودكاست إلى شورتس") as demo:
     status = gr.Textbox(label="نتيجة المعالجة", lines=4)
     downloads = gr.File(label="تنزيل الشورتس", file_count="multiple")
     preview = gr.Video(label="معاينة أول شورت")
+    zip_download = gr.File(label="تنزيل جميع الشورتس ZIP")
     run.click(process_video, inputs=[video, count, min_seconds, max_seconds, subtitles, model],
-              outputs=[status, downloads, preview], concurrency_limit=1)
+              outputs=[status, downloads, preview, zip_download], concurrency_limit=1)
 
 if __name__ == "__main__":
     demo.queue(max_size=3).launch()
