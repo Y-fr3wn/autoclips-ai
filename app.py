@@ -17,8 +17,12 @@ def process_video(video, count, min_seconds, max_seconds, subtitles, model):
     if int(max_seconds) <= int(min_seconds):
         raise gr.Error("مدة النهاية لازم تكون أكبر من مدة البداية.")
     source = Path(video)
+    if source.is_file() and source.stat().st_size > 150 * 1024 * 1024:
+        raise gr.Error("حجم الفيديو أكبر من 150 ميجابايت. جرّب ملفًا أصغر.")
     if not source.is_file():
         raise gr.Error("ملف الفيديو غير متاح.")
+    if source.suffix.lower() not in {".mp4", ".mov", ".webm", ".mkv"}:
+        raise gr.Error("الصيغة غير مدعومة. استخدم MP4 أو MOV أو WebM أو MKV.")
     # Keep temporary outputs for the session; Gradio copies returned files into its cache.
     output = Path(tempfile.mkdtemp(prefix="autoclips_"))
     command = [
@@ -61,6 +65,7 @@ with gr.Blocks(title="AutoClips AI | بودكاست إلى شورتس") as demo:
         min_seconds = gr.Slider(10, 60, value=15, step=5, label="أقل مدة (ثانية)")
         max_seconds = gr.Slider(30, 90, value=60, step=5, label="أكبر مدة (ثانية)")
     subtitles = gr.Checkbox(value=True, label="إضافة ترجمة على الفيديو")
+    gr.Markdown("⚠️ النسخة التجريبية مخصصة للفيديوهات غير الخاصة فقط. الملفات المرفوعة قد تبقى مؤقتًا في ذاكرة التخزين على الاستضافة.")
     run = gr.Button("ابدأ التقطيع التلقائي", variant="primary")
     status = gr.Textbox(label="نتيجة المعالجة", lines=4)
     downloads = gr.File(label="تنزيل الشورتس", file_count="multiple")
@@ -69,4 +74,4 @@ with gr.Blocks(title="AutoClips AI | بودكاست إلى شورتس") as demo:
               outputs=[status, downloads, preview], concurrency_limit=1)
 
 if __name__ == "__main__":
-    demo.queue(max_size=3).launch()
+    demo.queue(max_size=3).launch(max_file_size="150mb")
