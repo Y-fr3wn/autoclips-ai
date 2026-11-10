@@ -15,28 +15,57 @@ video{width:100%;max-height:440px;border-radius:14px;background:#050812;margin-t
 label{font-size:14px;color:#d2def5}input[type=number]{display:block;width:100%;margin-top:7px;border:1px solid #526587;border-radius:10px;background:#0d172b;color:white;padding:12px;font-size:16px}
 button{border:0;border-radius:12px;background:#7698ff;color:#081229;font-weight:800;padding:14px;width:100%;margin-top:17px;font-size:15px;cursor:pointer}
 button:disabled{opacity:.45;cursor:not-allowed}.note{font-size:13px;color:#a9bad8}
-#status{min-height:24px;margin-top:12px;color:#dce6fa}.hidden{display:none}
+#status{min-height:24px;margin-top:12px;color:#dce6fa}.hidden{display:none!important}
 footer{margin-top:35px;color:#95a6c6;font-size:13px}
 </style></head><body><main>
 <header><div class="logo">✂ Auto<span>Clips</span> AI</div><div class="tag">نسخة تجريبية مجانية</div></header>
 <h1>حوّل فيديوهاتك إلى <span style="color:#91acff">شورتس</span></h1>
-<p class="lead">النسخة الأولى: ارفع فيديو من موبايلك، عاينه وحدد بداية ونهاية المقطع. التقطيع والتصدير بالذكاء الاصطناعي لم يتم ربطهما بعد.</p>
+<p class="lead">ارفع فيديو حتى 12 دقيقة، حدد اللقطة، وجرّب تصديرها عموديًا من متصفحك. اختيار اللقطات بالذكاء الاصطناعي والترجمة التلقائية لم يجهزا بعد.</p>
 <section class="panel"><label class="drop" for="file"><strong>📁 اضغط لاختيار فيديو</strong><small>يظل الفيديو على جهازك في هذه النسخة — لا يتم رفعه إلى سيرفر</small></label>
 <input id="file" type="file" accept="video/*"><div id="workspace" class="hidden">
 <video id="player" controls playsinline></video>
 <div class="controls"><label>بداية المقطع (ثانية)<input id="start" type="number" min="0" value="0" step=".1"></label>
 <label>نهاية المقطع (ثانية)<input id="end" type="number" min="0" value="0" step=".1"></label></div>
 <button id="preview">معاينة المقطع المحدد</button>
-<button disabled title="يتطلب ربط محرك المعالجة">تصدير الشورت — قريبًا</button>
-<p class="note">تصدير 9:16 والترجمة واختيار اللقطات تلقائيًا تحتاج محرك معالجة سحابي لم يتم نشره بعد.</p>
+<button id="export">تصدير المقطع عموديًا (تجريبي)</button><a id="download" class="hidden" download="autoclips-short.webm" style="display:block;text-align:center;color:#a7c0ff;margin-top:12px">تنزيل الشورت</a>
+<p class="note">التصدير يتم بسرعة تشغيل الفيديو الحقيقية ويحتاج إبقاء الصفحة مفتوحة. قد لا يعمل على كل الأجهزة؛ الناتج WebM، وليس MP4. لا توجد ترجمة أو اختيار ذكي تلقائي في هذه النسخة.</p>
 </div><div id="status" role="status"></div></section>
 <footer>AutoClips AI — البداية مجانية ومفتوحة المصدر. المعالجة السحابية قد تخضع لحدود الاستضافة المجانية.</footer>
 </main><script>
 const file=document.getElementById('file'),video=document.getElementById('player'),status=document.getElementById('status');
-let url=null,stopAt=null;
+let url=null,stopAt=null, audioCtx=null, audioDest=null, audioSource=null, downloadUrl=null;
 file.addEventListener('change',()=>{const f=file.files[0];if(!f)return;if(!f.type.startsWith('video/')){status.textContent='اختار ملف فيديو صالح';return}
-if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);video.src=url;document.getElementById('workspace').classList.remove('hidden');status.textContent='تم فتح: '+f.name;});
-video.addEventListener('loadedmetadata',()=>{document.getElementById('end').value=Math.floor(video.duration*10)/10;});
+if(url)URL.revokeObjectURL(url);if(downloadUrl)URL.revokeObjectURL(downloadUrl);document.getElementById('download').classList.add('hidden');url=URL.createObjectURL(f);video.src=url;document.getElementById('workspace').classList.remove('hidden');status.textContent='تم فتح: '+f.name;});
+video.addEventListener('loadedmetadata',()=>{if(video.duration>720){status.textContent='الفيديو أطول من 12 دقيقة، اختار فيديو أقصر';document.getElementById('workspace').classList.add('hidden');return;}document.getElementById('end').value=Math.floor(video.duration*10)/10;});
 document.getElementById('preview').addEventListener('click',()=>{const a=Number(document.getElementById('start').value),b=Number(document.getElementById('end').value);if(!Number.isFinite(a)||!Number.isFinite(b)||a<0||b<=a||b>video.duration){status.textContent='راجع وقت البداية والنهاية';return}stopAt=b;video.currentTime=a;video.play().catch(()=>{});status.textContent='بتعاين المقطع من '+a+' إلى '+b+' ثانية';});
 video.addEventListener('timeupdate',()=>{if(stopAt!==null&&video.currentTime>=stopAt){video.pause();stopAt=null;}});
+
+// Browser-only export: real-time canvas capture with Web Audio output.
+// Export format is WebM and requires MediaRecorder and canvas.captureStream.
+document.getElementById('export').addEventListener('click',async()=>{
+ const a=Number(document.getElementById('start').value),b=Number(document.getElementById('end').value);
+ if(!video.duration||a<0||b<=a||b>video.duration||b-a>90){status.textContent='اختار مقطع صالح لحد 90 ثانية';return;}
+ if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){status.textContent='المتصفح ده لا يدعم تصدير الفيديو؛ جرّب Chrome حديث';return;}
+ const mime=['video/webm;codecs=vp8,opus','video/webm'].find(x=>MediaRecorder.isTypeSupported(x));
+ if(!mime){status.textContent='المتصفح لا يدعم تسجيل WebM';return;}
+ const btn=document.getElementById('export');btn.disabled=true;const canvas=document.createElement('canvas');canvas.width=360;canvas.height=640;
+ const ctx=canvas.getContext('2d');let raf=0,recorder=null;
+ try{
+  if(!audioCtx){audioCtx=new (window.AudioContext||window.webkitAudioContext)();audioSource=audioCtx.createMediaElementSource(video);audioDest=audioCtx.createMediaStreamDestination();audioSource.connect(audioDest);audioSource.connect(audioCtx.destination);}
+  await audioCtx.resume();video.pause();video.currentTime=a;
+  await new Promise((resolve,reject)=>{if(Math.abs(video.currentTime-a)<.15)return resolve();video.addEventListener('seeked',resolve,{once:true});setTimeout(()=>reject(new Error('تعذر تحديد بداية المقطع')),7000);});
+  const draw=()=>{const w=video.videoWidth,h=video.videoHeight;if(w&&h){const cw=Math.min(w,h*9/16),ch=Math.min(h,w*16/9);ctx.drawImage(video,(w-cw)/2,(h-ch)/2,cw,ch,0,0,360,640);}raf=requestAnimationFrame(draw);};
+  draw();
+  const stream=canvas.captureStream(24);for(const t of audioDest.stream.getAudioTracks())stream.addTrack(t);
+  const chunks=[];recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:1400000});
+  const done=new Promise((resolve,reject)=>{recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};recorder.onstop=resolve;recorder.onerror=()=>reject(new Error('فشل التسجيل'));});
+  recorder.start(1000);await video.play();
+  status.textContent='جاري التصدير… خليك فاتح الصفحة لحد نهاية المقطع';
+  await new Promise((resolve,reject)=>{const timer=setInterval(()=>{status.textContent='جاري التصدير… '+Math.max(0,Math.round((video.currentTime-a)/(b-a)*100))+'%';if(video.currentTime>=b||video.ended){clearInterval(timer);resolve();}},200);video.addEventListener('error',()=>{clearInterval(timer);reject(new Error('تعذر تشغيل الفيديو'))},{once:true});});
+  video.pause();recorder.stop();await done;stream.getTracks().forEach(t=>t.stop());cancelAnimationFrame(raf);
+  if(downloadUrl)URL.revokeObjectURL(downloadUrl);downloadUrl=URL.createObjectURL(new Blob(chunks,{type:mime}));
+  const link=document.getElementById('download');link.href=downloadUrl;link.classList.remove('hidden');status.textContent='تم التصدير! اضغط تنزيل الشورت.';
+ }catch(e){if(recorder&&recorder.state!=='inactive')recorder.stop();cancelAnimationFrame(raf);video.pause();status.textContent='فشل التصدير: '+e.message;}
+ finally{btn.disabled=false;}
+});
 </script></body></html>
