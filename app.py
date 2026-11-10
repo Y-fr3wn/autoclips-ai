@@ -1,6 +1,8 @@
 """AutoClips AI — deployable Gradio prototype for free-tier CPU hosting."""
 import json
 import os
+import re
+import imageio_ffmpeg
 import shutil
 import subprocess
 import sys
@@ -22,18 +24,16 @@ def process_video(video, count, min_seconds, max_seconds, subtitles, model):
     if not source.is_file():
         raise gr.Error("ملف الفيديو غير متاح.")
     # FFmpeg determines supported input containers/codecs. Do not restrict by extension.
-    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(source)], capture_output=True, text=True)
-    if probe.returncode:
-        raise gr.Error("تعذر قراءة الفيديو. تأكد أن الملف فيديو صالح.")
-    try:
-        duration = float(probe.stdout.strip())
-    except ValueError:
-        raise gr.Error("تعذر معرفة مدة الفيديو.")
+    probe = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-i", str(source)], capture_output=True, text=True)
+    match = re.search(r"Duration:\\s*(\\d+):(\\d+):(\\d+(?:\\.\\d+)?)", probe.stderr)
+    if not match:
+        raise gr.Error("تعذر قراءة مدة الفيديو. تأكد أن الملف فيديو صالح.")
+    duration = int(match.group(1)) * 3600 + int(match.group(2)) * 60 + float(match.group(3))
     if duration <= 0 or duration > 12 * 60:
         raise gr.Error("الحد الأقصى لمدة الفيديو 12 دقيقة.")
     # Keep temporary outputs for the session; Gradio copies returned files into its cache.
     output = Path(tempfile.mkdtemp(prefix="autoclips_"))
-    command = [
+    # Use the pip-installed FFmpeg binary on hosts without system FFmpeg.\n    ffmpeg_bin = Path(imageio_ffmpeg.get_ffmpeg_exe())\n    ffmpeg_link = output / "ffmpeg"\n    ffmpeg_link.symlink_to(ffmpeg_bin)\n    env = os.environ.copy()\n    env["PATH"] = str(output) + os.pathsep + env.get("PATH", "")\n    command = [
         sys.executable, str(ENGINE), str(source),
         "--output", str(output), "--count", str(int(count)),
         "--min-seconds", str(int(min_seconds)),
@@ -42,7 +42,7 @@ def process_video(video, count, min_seconds, max_seconds, subtitles, model):
     if subtitles:
         command.append("--subtitles")
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=1800)
+        result = subprocess.run(command, capture_output=True, text=True, timeout=1800, env=env)
     except subprocess.TimeoutExpired:
         shutil.rmtree(output, ignore_errors=True)
         raise gr.Error("انتهت مهلة المعالجة. جرّب فيديو أقصر.")
