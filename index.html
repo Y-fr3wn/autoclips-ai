@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoClips AI | استوديو الشورتس</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#eef3ff;background:#0b1020}*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at 80% 0,#25365c,#0b1020 55%);min-height:100vh}
+main{max-width:850px;margin:auto;padding:24px 16px 60px}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:38px}
+.logo{font-weight:900;font-size:23px}.logo span{color:#8ba9ff}.tag{font-size:12px;border:1px solid #425476;border-radius:40px;padding:7px 11px;color:#b6c7ec}
+h1{font-size:clamp(29px,6vw,49px);margin:12px 0}p{color:#b7c3db;line-height:1.8}.lead{font-size:17px}
+.panel{background:#151e32;border:1px solid #32405b;border-radius:22px;padding:22px;margin-top:24px;box-shadow:0 15px 45px #0003}
+.drop{border:2px dashed #60749d;border-radius:16px;padding:28px 12px;text-align:center;display:block;cursor:pointer;background:#1b2943}
+.drop strong{display:block;font-size:18px}.drop small{color:#b7c3db}input[type=file]{display:none}
+video{width:100%;max-height:440px;border-radius:14px;background:#050812;margin-top:18px}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}
+label{font-size:14px;color:#d2def5}input[type=number]{display:block;width:100%;margin-top:7px;border:1px solid #526587;border-radius:10px;background:#0d172b;color:white;padding:12px;font-size:16px}
+button{border:0;border-radius:12px;background:#7698ff;color:#081229;font-weight:800;padding:14px;width:100%;margin-top:17px;font-size:15px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}.note{font-size:13px;color:#a9bad8}
+#status{min-height:24px;margin-top:12px;color:#dce6fa}.hidden{display:none}
+footer{margin-top:35px;color:#95a6c6;font-size:13px}
+</style></head><body><main>
+<header><div class="logo">✂ Auto<span>Clips</span> AI</div><div class="tag">نسخة تجريبية مجانية</div></header>
+<h1>حوّل فيديوهاتك إلى <span style="color:#91acff">شورتس</span></h1>
+<p class="lead">النسخة الأولى: ارفع فيديو من موبايلك، عاينه وحدد بداية ونهاية المقطع. التقطيع والتصدير بالذكاء الاصطناعي لم يتم ربطهما بعد.</p>
+<section class="panel"><label class="drop" for="file"><strong>📁 اضغط لاختيار فيديو</strong><small>يظل الفيديو على جهازك في هذه النسخة — لا يتم رفعه إلى سيرفر</small></label>
+<input id="file" type="file" accept="video/*"><div id="workspace" class="hidden">
+<video id="player" controls playsinline></video>
+<div class="controls"><label>بداية المقطع (ثانية)<input id="start" type="number" min="0" value="0" step=".1"></label>
+<label>نهاية المقطع (ثانية)<input id="end" type="number" min="0" value="0" step=".1"></label></div>
+<button id="preview">معاينة المقطع المحدد</button>
+<button disabled title="يتطلب ربط محرك المعالجة">تصدير الشورت — قريبًا</button>
+<p class="note">تصدير 9:16 والترجمة واختيار اللقطات تلقائيًا تحتاج محرك معالجة سحابي لم يتم نشره بعد.</p>
+</div><div id="status" role="status"></div></section>
+<footer>AutoClips AI — البداية مجانية ومفتوحة المصدر. المعالجة السحابية قد تخضع لحدود الاستضافة المجانية.</footer>
+</main><script>
+const file=document.getElementById('file'),video=document.getElementById('player'),status=document.getElementById('status');
+let url=null,stopAt=null;
+file.addEventListener('change',()=>{const f=file.files[0];if(!f)return;if(!f.type.startsWith('video/')){status.textContent='اختار ملف فيديو صالح';return}
+if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);video.src=url;document.getElementById('workspace').classList.remove('hidden');status.textContent='تم فتح: '+f.name;});
+video.addEventListener('loadedmetadata',()=>{document.getElementById('end').value=Math.floor(video.duration*10)/10;});
+document.getElementById('preview').addEventListener('click',()=>{const a=Number(document.getElementById('start').value),b=Number(document.getElementById('end').value);if(!Number.isFinite(a)||!Number.isFinite(b)||a<0||b<=a||b>video.duration){status.textContent='راجع وقت البداية والنهاية';return}stopAt=b;video.currentTime=a;video.play().catch(()=>{});status.textContent='بتعاين المقطع من '+a+' إلى '+b+' ثانية';});
+video.addEventListener('timeupdate',()=>{if(stopAt!==null&&video.currentTime>=stopAt){video.pause();stopAt=null;}});
+</script></body></html>
