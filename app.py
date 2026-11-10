@@ -61,7 +61,7 @@ def process_video(video, count, min_seconds, max_seconds, subtitles, model):
             f"المقطع {i+1}: {row['start']:.1f}–{row['end']:.1f} ثانية"
             for i, row in enumerate(info)
         )
-    archive = shutil.make_archive(str(output / "autoclips_shorts"), "zip", root_dir=output, base_dir=".")
+    # Create the archive outside the source directory to avoid including itself.\n    archive = shutil.make_archive(str(output.parent / f"{output.name}_shorts"), "zip", root_dir=output, base_dir=".")
     return description, [str(p) for p in clips], str(clips[0]), archive
 
 
