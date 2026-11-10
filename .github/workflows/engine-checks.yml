@@ -16,7 +16,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
       - name: Run unit tests
         run: python -m unittest discover -s engine/tests -v
       - name: Validate syntax
         run: python -m compileall -q engine
+      - name: Test MP4 export and subtitles
+        run: python engine/tests/test_ffmpeg_export.py
