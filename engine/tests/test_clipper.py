@@ -25,6 +25,12 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(found)
         self.assertTrue(any(c["start"] == 0 and c["end"] == 18 for c in found))
 
+    def test_no_punctuation_transcript(self):
+        words = [FakeWord(i, i + 1, "word") for i in range(70)]
+        found = clipper.candidates([FakeSegment(words)], min_sec=15, max_sec=30)
+        self.assertTrue(found, "Speech without punctuation should still yield clips")
+        self.assertTrue(all(15 <= c["end"] - c["start"] <= 30 for c in found))
+
     def test_nonoverlap(self):
         items = [{"start":0,"end":20,"score":5}, {"start":10,"end":30,"score":4}, {"start":30,"end":50,"score":3}]
         result = clipper.choose(items, 3)
