@@ -32,7 +32,7 @@ def candidates(segments, min_sec=20, max_sec=65):
     if not words:
         return []
     stops = {i for i,w in enumerate(words) if re.search(r"[.!?؟。]\s*$", w["word"])}
-    starts = [0] + [i+1 for i in stops if i+1 < len(words)]
+    starts = [0] + [i+1 for i in stops if i+1 < len(words)]\n    # If transcription punctuation is missing, allow starts at regular word intervals.\n    if len(starts) == 1:\n        starts.extend(range(10, len(words), 10))
     starts = sorted(set(starts))
     results = []
     for i in starts:
@@ -99,10 +99,10 @@ def main():
     from faster_whisper import WhisperModel
     output = Path(args.output).resolve()
     output.mkdir(parents=True, exist_ok=True)
-    model = WhisperModel(args.model, device="cpu", compute_type="int8")
+    print("Loading Whisper model...", flush=True)\n    model = WhisperModel(args.model, device="cpu", compute_type="int8")
     segments_iter, info = model.transcribe(args.video, word_timestamps=True, vad_filter=True,
                                            beam_size=3)
-    segments = list(segments_iter)
+    segments = list(segments_iter)\n    print(f"Detected language: {info.language}; speech segments: {len(segments)}", flush=True)
     clips = choose(candidates(segments, args.min_seconds, args.max_seconds), args.count)
     if not clips:
         print("No complete speech clips matched the requested duration.")
